@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Chat</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #3a7bd5, #00d2ff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 450px;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #007bff;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="submit"],
+    button {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      background: #f2f2f2;
+    }
+
+    button,
+    input[type="submit"] {
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover,
+    input[type="submit"]:hover {
+      background: #0056b3;
+    }
+
+    #chat-section {
+      display: none;
+    }
+
+    #chat-box {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 250px;
+      overflow-y: scroll;
+      background: #f9f9f9;
+      border-radius: 10px;
+    }
+
+    .msg {
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background-color: #e0f0ff;
+    }
+
+    .msg strong {
+      color: #007bff;
+    }
+
+    #message-input {
+      width: calc(100% - 70px);
+      display: inline-block;
+    }
+
+    #send-btn {
+      width: 60px;
+      display: inline-block;
+      margin-left: 5px;
+    }
+
+    @media screen and (max-width: 480px) {
+      .container {
+        padding: 20px;
+      }
+
+      #message-input {
+        width: calc(100% - 65px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>Secure Chat</h2>
+
+    <form id="login-form">
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <input type="submit" value="Login" />
+    </form>
+
+    <div id="chat-section">
+      <div id="chat-box"></div>
+      <div style="margin-top: 10px;">
+        <input type="text" id="message-input" placeholder="Type your message..." />
+        <button id="send-btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    let socket = io();
+
+    const loginForm = document.getElementById("login-form");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const chatBox = document.getElementById("chat-box");
+    const chatSection = document.getElementById("chat-section");
+    const messageInput = document.getElementById("message-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    function registerSocketEvents() {
+      socket.on("auth-failed", (msg) => {
+        alert(msg);
+        socket.disconnect();
+        setTimeout(() => {
+          socket = io();
+          registerSocketEvents();
+        }, 500);
+      });
+
+      socket.on("user-joined", ({ username }) => {
+        chatSection.style.display = "block";
+        loginForm.style.display = "none";
+        chatBox.innerHTML += `<div class="msg"><em>${username} joined</em></div>`;
+      });
+
+      socket.on("chat-history", (messages) => {
+        messages.forEach(msg => {
+          chatBox.innerHTML += `<div class="msg"><strong>${msg.username}</strong>: ${msg.message} <small>(${msg.time})</small></div>`;
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+
+      socket.on("chat-message", (msg) => {
+        chatBox.innerHTML += `<div class="msg"><strong>${msg.username}</strong>: ${msg.message} <small>(${msg.time})</small></div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+
+    registerSocketEvents();
+
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (socket.connected) {
+        socket.emit("register-user", { username, password });
+      } else {
+        alert("Reconnecting... please try again.");
+      }
+    });
+
+    sendBtn.addEventListener("click", () => {
+      const message = messageInput.value.trim();
+      if (message) {
+        socket.emit("chat-message", message);
+        messageInput.value = "";
+      }
+    });
+  </script>
+</body>
+
+</html>
